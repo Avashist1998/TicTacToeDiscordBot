@@ -1,9 +1,11 @@
 import os
+import time
 import random
 import discord
-from tic_tac_toe.TicTacToe import TicTacToe
+from itertools import cycle
 from dotenv import load_dotenv
-from discord.ext import commands
+from discord.ext import commands , tasks
+from tic_tac_toe.TicTacToe import TicTacToe
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -11,6 +13,7 @@ intents = discord.Intents.all()
 bot = commands.Bot(command_prefix='$', intents = intents)
 
 GAMES = dict()
+GAMES_TIME = dict()
 
 def code_string_maker(string:str):
     return "```" + string + "```"
@@ -20,9 +23,24 @@ async def on_ready():
     print("Logged in as")
     print(bot.user.name)
     print(bot.user.id)
+    game_cleaner.start()
     for guild in bot.guilds:
         print("{}".format(guild.name))
     print("---------")
+
+@tasks.loop(seconds=100)
+async def game_cleaner():
+    current_time = time.time()
+    game_clean_list = list()
+    if len(GAMES_TIME) != 0:
+        for name in GAMES_TIME:
+            time_diff = current_time - GAMES_TIME[name]
+            print(name, time_diff)
+            if time_diff > 60:
+                game_clean_list.append(name)
+        for name in game_clean_list:
+            GAMES_TIME.pop(name)
+            GAMES.pop(name)
 
 # @bot.event
 # async def on_message(message):
@@ -51,7 +69,7 @@ async def rankUs(ctx):
 
 async def winner_print(ctx, game):
     await ctx.channel.send(code_string_maker(game.get_board()))
-    print(game.get_board())
+    # print(game.get_board())
     winner = game.get_winner()
     if (winner == bot.user.name):
         await ctx.channel.send("I have won and you have lost, you fool.\n"\
@@ -73,17 +91,20 @@ async def play(ctx, arg1):
                 spot = int(content)
                 if spot > 0 and spot <10:
                     status = game.play_turn(spot)
+                    GAMES_TIME[name] = time.time()
                     if (status == -1):
                         await ctx.channel.send("The spot is already taken")
                     elif status == 1:
                         await winner_print(ctx, game)
                         GAMES.pop(name)
+                        GAMES_TIME.pop(name)
                     else:
                         status = bot_play_run(game)
+                        GAMES_TIME[name] = time.time()
                         if status == 1:
                             await winner_print(ctx, game)
-                            # print(game.get_board())
                             GAMES.pop(name)
+                            GAMES_TIME.pop(name)
                         else:
                             await ctx.channel.send(code_string_maker(game.get_board()))
                             # print(game.get_board())
@@ -143,6 +164,7 @@ def game_maker(names):
     if (names[0] == bot_player):
         bot_play_run(game)
     GAMES[player] = game
+    GAMES_TIME[player] = time.time()
 
 @bot.command(name='playme')
 async def playme(ctx):
