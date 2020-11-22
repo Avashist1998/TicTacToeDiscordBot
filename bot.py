@@ -175,7 +175,7 @@ async def playme(ctx):
     game_maker(names)
     await member.create_dm()
     await member.send(challenge)
+    await member.send("```Type $play spot to pick the spot on the board```")
     await member.dm_channel.send(code_string_maker(GAMES[player_name].get_board()))
-    print("A Game has been initalized")
 
 bot.run(TOKEN)
