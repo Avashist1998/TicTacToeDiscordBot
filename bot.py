@@ -54,7 +54,6 @@ async def game_cleaner():
 @bot.command(name='rankUs', help='Ranks all of the member of the chat')
 async def rankUs(ctx):
     names = list()
-
     for user in ctx.guild.members:
         if (user.name != bot.user.name):
             names.append(user.name)
@@ -78,14 +77,14 @@ async def winner_print(ctx, game):
         await ctx.channel.send("You have tricked me, but whatever the case.\n"\
             "I crown you the winner for all of time.")
 
-@bot.command()
+@bot.command(name="play")
 async def play(ctx, arg1):
     name = ctx.author.name
     content = arg1
     channel = str(ctx.channel)
-    if (name != bot.user.name and  
-    str(channel) == "Direct Message with {}".format(ctx.author)):
-        if name in GAMES:
+
+    if (name != bot.user.name):
+        if (channel.name == "Direct Message with {}".format(ctx.author) and name in GAMES):
             if (len(content) == 1 and (int(content) > 0 and int(content) <10)):
                 spot = int(content)
                 game = GAMES[name]
@@ -109,9 +108,35 @@ async def play(ctx, arg1):
             else:
                 await ctx.channel.send("That is not a valid choice. \n"\
                     "The spot must be in between 1 and 9")
-
-        else :
-            await ctx.channel.send("There is not game to play 😕")
+        elif (channel.name in GAMES):
+            if (len(content) == 1 and (int(content) > 0 and int(content) <10)):
+                spot = int(content)
+                game = GAMES[channel.name]
+                curr_player =  game.player_1 if game.player_1_turn else game.player_2
+                if curr_player == ctx.author.name:
+                    status = game.play_turn(spot)
+                    GAMES_TIME[channel.name] = time.time()
+                    if (status == -1):
+                        await ctx.channel.send("The spot is already taken")
+                    elif status == 1:
+                        await ctx.channel.send(code_string_maker(game.get_board()))
+                        if (game.winner ==  game.player_1):
+                            await ctx.channel.send("Congratuation {}, you have bested {}".format(game.player_1, game.player_2))
+                        elif(game.winner == game.player_2):
+                            await ctx.channel.send("Congratuation {}, you have bested {}".format(game.player_2, game.player_1))
+                        else:
+                            await ctx.channel.send("It was had fought battle, but it was a draw. {}, and {} played well".format(game.player_1,game.player_2))
+                        GAMES.pop(channel.name)
+                        GAMES_TIME.pop(channel.name)
+                    elif (status == 1):
+                        await ctx.channel.send(code_string_maker(game.get_board()))
+                        curr_player =  game.player_1 if game.player_1_turn else game.player_2
+                        await ctx.channel.send("It is {} turn".format(curr_player))
+                else:
+                    await ctx.channel.send("It is not your turn. It is {} turn".format(curr_player))
+            else: await ctx.channel.send(code_string_maker(game.get_board()))
+        
+        else: await ctx.channel.send("There is not game to play 😕")
 
 @bot.command(name="clean-up", pass_context = True)
 @commands.has_role('admin')
@@ -174,4 +199,31 @@ async def playme(ctx):
     await member.send("```Type $play spot to pick the spot you want on the board```")
     await member.dm_channel.send(code_string_maker(GAMES[player_name].get_board()))
 
+async def player_game_maker(ctx, names):
+    channel_name = names[0]+'_'+names[1]
+    await ctx.guild.create_text_channel(channel_name)
+    game = TicTacToe(names[0], names[1])
+    GAMES[channel_name] = game
+    GAMES_TIME[channel_name] = time.time()
+    for channel in ctx.guild.channels:
+        if channel.name == channel_name: break
+    link = await channel.create_invite(max_age = 100, max_uses=2, reason="Invitation for the game held between {}".format(challenge))
+    await ctx.channel.send("The game has been create and will be held at channel name {}".format(channel_name))
+    await ctx.channel.send(link)
+    await ctx.channel.send(code_string_maker(game.get_board()))
+    await channel.send("It is {} turn".format(names[0]))
+
+@bot.command(name='challenge')
+async def challenge(ctx, arg1):
+    userFound = False
+    for member in ctx.guild.members:
+        # print(member.name)
+        if member.name == arg1:
+            userFound = True
+            if member.status != "online":
+                await ctx.channel.send("Player is not available")
+            else:
+                await player_game_maker(ctx,[ctx.author.name, arg1])
+    if not userFound:
+        await ctx.channel.send("Player is non-existent")
 bot.run(TOKEN)
