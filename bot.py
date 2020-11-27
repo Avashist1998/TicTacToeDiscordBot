@@ -54,7 +54,6 @@ async def game_cleaner():
 @bot.command(name='rankUs', help='Ranks all of the member of the chat')
 async def rankUs(ctx):
     names = list()
-    ranks = list()
 
     for user in ctx.guild.members:
         if (user.name != bot.user.name):
@@ -69,11 +68,12 @@ async def rankUs(ctx):
 
 async def winner_print(ctx, game):
     await ctx.channel.send(code_string_maker(game.get_board()))
-    # print(game.get_board())
     winner = game.get_winner()
     if (winner == bot.user.name):
         await ctx.channel.send("I have won and you have lost, you fool.\n"\
             "Now leave and take your misrable self away from my gaze")
+    elif (winner == ""):
+        await ctx.channel.send("You have given me a true challenge. I acknowledge your strength.")
     else:
         await ctx.channel.send("You have tricked me, but whatever the case.\n"\
             "I crown you the winner for all of time.")
@@ -86,35 +86,32 @@ async def play(ctx, arg1):
     if (name != bot.user.name and  
     str(channel) == "Direct Message with {}".format(ctx.author)):
         if name in GAMES:
-            if len(content) == 1:
-                game = GAMES[name]
+            if (len(content) == 1 and (int(content) > 0 and int(content) <10)):
                 spot = int(content)
-                if spot > 0 and spot <10:
-                    status = game.play_turn(spot)
+                game = GAMES[name]
+                status = game.play_turn(spot)
+                GAMES_TIME[name] = time.time()
+                if (status == -1):
+                    await ctx.channel.send("The spot is already taken")
+                elif status == 1:
+                    await winner_print(ctx, game)
+                    GAMES.pop(name)
+                    GAMES_TIME.pop(name)
+                else:
+                    status = bot_play_run(game)
                     GAMES_TIME[name] = time.time()
-                    if (status == -1):
-                        await ctx.channel.send("The spot is already taken")
-                    elif status == 1:
+                    if status == 1:
                         await winner_print(ctx, game)
                         GAMES.pop(name)
                         GAMES_TIME.pop(name)
                     else:
-                        status = bot_play_run(game)
-                        GAMES_TIME[name] = time.time()
-                        if status == 1:
-                            await winner_print(ctx, game)
-                            GAMES.pop(name)
-                            GAMES_TIME.pop(name)
-                        else:
-                            await ctx.channel.send(code_string_maker(game.get_board()))
-                            # print(game.get_board())
+                        await ctx.channel.send(code_string_maker(game.get_board()))
             else:
                 await ctx.channel.send("That is not a valid choice. \n"\
                     "The spot must be in between 1 and 9")
 
         else :
             await ctx.channel.send("There is not game to play 😕")
-
 
 @bot.command(name="clean-up", pass_context = True)
 @commands.has_role('admin')
@@ -142,11 +139,10 @@ async def get_names(ctx):
   names = list()
   for user in ctx.guild.members:
     names.append(user.name)
-    
   await ctx.channel.send('\n'.join(names))
 
 def bot_play_run(game:TicTacToe):
-    options = [*range(1,11)]
+    options = [*range(1,10)]
     random.shuffle(options)
     val = options[8]
     status = game.play_turn(val)
@@ -156,7 +152,7 @@ def bot_play_run(game:TicTacToe):
         i = i-1
     return status
 
-def game_maker(names):
+def bot_game_maker(names):
     player = names[0]
     bot_player = names[1]
     random.shuffle(names)
@@ -171,11 +167,11 @@ async def playme(ctx):
     challenge = "I am the best tictactoe player in all the servers.\n You fool must pay the price for challenge me"
     member = ctx.author
     player_name = ctx.author.name
-    names = [ctx.author.name, bot.user.name]
-    game_maker(names)
+    names = [player_name, bot.user.name]
+    bot_game_maker(names)
     await member.create_dm()
     await member.send(challenge)
-    await member.send("```Type $play spot to pick the spot on the board```")
+    await member.send("```Type $play spot to pick the spot you want on the board```")
     await member.dm_channel.send(code_string_maker(GAMES[player_name].get_board()))
 
 bot.run(TOKEN)
