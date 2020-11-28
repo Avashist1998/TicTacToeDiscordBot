@@ -134,7 +134,7 @@ async def play(ctx, arg1):
                         elif(game.winner == game.player_2):
                             await ctx.channel.send("Congratuation {}, you have bested {}".format(game.player_2, game.player_1))
                         else:
-                            await ctx.channel.send("It was had fought battle, but it was a draw. {}, and {} played well".format(game.player_1,game.player_2))
+                            await ctx.channel.send("It was hard fought battle, but it was come to a draw. {}, and {} played well".format(game.player_1,game.player_2))
                         time.sleep(10)
                         await ctx.channel.delete()
                         GAMES.pop(channel.name)
@@ -225,19 +225,15 @@ async def player_game_maker(ctx, names):
     await channel.send(code_string_maker(game.get_board()))
     await channel.send("It is {} turn".format(names[0]))
 
-@bot.command(name='challenge')
-async def challenge(ctx, arg1):
+@bot.command(name='challenge', help = "This command allow player to challenge one another")
+async def challenge(ctx, *, member:discord.Member):
     userFound = False
-    for member in ctx.guild.members:
-        if member.name == arg1:
-            userFound = True
-            # need to make change to this statement
-            if str(member.status) != "online":
-                await ctx.channel.send("Player is not available. The {} is {}".format(
-                    member.name, member.status))
-            else:
-                await player_game_maker(ctx,[ctx.author.name, arg1])
-    if not userFound:
+    if member in ctx.guild.members:
+        if str(member.status) != "online":
+            await ctx.channel.send("Player is not available. The {} is {}".format(
+                member.name, member.status))
+        else:
+            await player_game_maker(ctx,[member.name, ctx.author.name])
+    else:
         await ctx.channel.send("Player is non-existent")
-    # print(ctx.mentions)
 bot.run(TOKEN)
