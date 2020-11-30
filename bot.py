@@ -87,9 +87,8 @@ async def play(ctx, arg1):
     name = ctx.author.name
     content = arg1
     channel = ctx.channel
-
     if (name != bot.user.name):
-        if (ctx.channel.name == "Direct Message with {}".format(ctx.author) and name in GAMES):
+        if (isinstance(channel, discord.DMChannel) and name in GAMES):
             if (len(content) == 1 and (int(content) > 0 and int(content) <10)):
                 spot = int(content)
                 game = GAMES[name]
@@ -113,7 +112,7 @@ async def play(ctx, arg1):
             else:
                 await ctx.channel.send("That is not a valid choice. \n"\
                     "The spot must be in between 1 and 9")
-        elif (channel.name in GAMES):
+        elif (not isinstance(channel, discord.DMChannel) and channel.name in GAMES):
             if (len(content) == 1 and (int(content) > 0 and int(content) <10)):
                 spot = int(content)
                 game = GAMES[channel.name]
